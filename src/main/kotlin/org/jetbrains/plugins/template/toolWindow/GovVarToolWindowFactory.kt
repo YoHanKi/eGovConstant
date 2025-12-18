@@ -167,7 +167,7 @@ class GovVarToolWindowFactory : ToolWindowFactory {
             val keyword = searchField.text.trim()
             
             // Clear existing results
-            resultTableModel.rowCount = 0
+            resultTableModel.setRowCount(0)
 
             if (keyword.isEmpty()) {
                 thisLogger().info("Search performed with empty keyword")
