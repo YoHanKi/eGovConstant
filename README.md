@@ -18,11 +18,29 @@
 - [ ] Configure the [CODECOV_TOKEN](https://docs.codecov.com/docs/quick-start) secret for automated test coverage reports on PRs
 
 <!-- Plugin description -->
-This Fancy IntelliJ Platform Plugin is going to be your implementation of the brilliant ideas that you have.
+A production-grade IntelliJ IDEA plugin that recommends standardized variable names (fields, parameters, locals, constants) based on Korean government/public standard dictionaries.
 
-This specific section is a source for the [plugin.xml](/src/main/resources/META-INF/plugin.xml) file which will be extracted by the [Gradle](/build.gradle.kts) during the build process.
+Key features:
+- **Bundled Canonical Dataset**: Works out-of-the-box with a default, authoritative dataset. No XLSX required for normal operation.
+- **XLSX Importer**: Import additional data into the canonical store with validation, merging, and deduplication.
+- Unified model across Terms, Words, and Domains with synonyms and forbidden words.
+- Fast search with ranking: exact > prefix > contains > fuzzy, synonym-boosted; filters by type and domain.
+- Variable name generation with consistent acronym handling and suffix rules; outputs camelCase, snake_case, PascalCase.
+- Tool Window "eGovConstant" to manage datasets, search, copy or insert names; shows load status and statistics.
+- Code Completion contributor suggests names during declarations (min 2 chars).
+- Intention: "Rename to eGovConstant recommended name" with chooser when multiple candidates exist.
+- Persistent Canonical Store for user-added or imported entries.
 
-To keep everything working, do not remove `<!-- ... -->` sections. 
+Usage:
+1) Open the eGovConstant tool window.
+2) The plugin is ready with the default dataset.
+3) To import additional data:
+   - Select an XLSX file and click "Import XLSX".
+   - The plugin validates the headers (ignoring column order, matching by name).
+   - New entries are added; existing entries are merged (non-empty fields are preserved, sets like synonyms are unioned).
+4) Use "Reset to Default" to clear all imported/user data and return to the baseline dataset.
+5) Use the search box to find terms and copy/insert camelCase names.
+6) In code, use completion to get suggestions, or the intention action to rename to recommended names.
 <!-- Plugin description end -->
 
 ## Installation
