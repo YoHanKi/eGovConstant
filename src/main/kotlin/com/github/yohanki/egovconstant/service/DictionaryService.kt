@@ -2,6 +2,8 @@ package com.github.yohanki.egovconstant.service
 
 import com.github.yohanki.egovconstant.data.CanonicalStore
 import com.github.yohanki.egovconstant.data.ExcelDictionaryLoader
+import com.github.yohanki.egovconstant.data.StdEntry
+import com.github.yohanki.egovconstant.data.toEntry
 import com.github.yohanki.egovconstant.index.DictionaryIndex
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
@@ -37,16 +39,19 @@ class DictionaryService(private val project: Project) {
         }
     }
 
-    fun loadFromXlsx(xlsx: File, onDone: ((CanonicalStore.ImportSummary?) -> Unit)? = null) {
+    fun loadFromJson(json: String, onDone: ((CanonicalStore.ImportSummary?) -> Unit)? = null) {
         val task = object : Task.Backgroundable(project, "Importing eGov Dictionary") {
             var summary: CanonicalStore.ImportSummary? = null
             override fun run(indicator: ProgressIndicator) {
-                val result = ExcelDictionaryLoader.load(xlsx)
-                if (result.error != null) {
-                    log.warn(result.error)
-                } else {
-                    summary = store.importEntries(result.entries)
+                try {
+                    val gson = com.google.gson.Gson()
+                    val type = object : com.google.gson.reflect.TypeToken<List<com.github.yohanki.egovconstant.data.StdEntryState>>() {}.type
+                    val states = gson.fromJson<List<com.github.yohanki.egovconstant.data.StdEntryState>>(json, type)
+                    val entries = states.map { it.toEntry() }
+                    summary = store.importEntries(entries)
                     index = DictionaryIndex(store.getEffectiveEntries())
+                } catch (e: Exception) {
+                    log.warn("Failed to load JSON", e)
                 }
             }
 
