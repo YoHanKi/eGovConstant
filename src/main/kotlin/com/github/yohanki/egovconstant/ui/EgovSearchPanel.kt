@@ -30,6 +30,12 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         background = JBUI.CurrentTheme.ToolWindow.background()
     }
 
+    private val closeDetailBtn = JButton("Close Details").apply {
+        isFocusable = false
+    }
+
+    private val firstBtn = JButton("<< First").apply { isFocusable = false }
+    private val lastBtn = JButton("Last >>").apply { isFocusable = false }
     private val prevBtn = JButton("< Prev")
     private val nextBtn = JButton("Next >")
     private val pageLabel = JBLabel("Page 1")
@@ -40,6 +46,8 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val copyBtn = JButton("Copy name")
     private val insertBtn = JButton("Insert at caret")
     private val statusLabel = JBLabel("Status: ")
+
+    private lateinit var detailScroll: JScrollPane
 
     init {
         // Search & Results Panel
@@ -81,9 +89,11 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         }
 
         val paginationPanel = JPanel(FlowLayout(FlowLayout.CENTER)).apply {
+            add(firstBtn)
             add(prevBtn)
             add(pageLabel)
             add(nextBtn)
+            add(lastBtn)
         }
 
         val center = JPanel(BorderLayout())
@@ -92,13 +102,21 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         top.add(center, BorderLayout.CENTER)
 
         // Detail Panel
-        val detailScroll = JScrollPane(detailPane).apply {
-            preferredSize = Dimension(-1, 120)
+        val detailContent = JPanel(BorderLayout())
+        detailScroll = JScrollPane(detailPane).apply {
+            preferredSize = Dimension(-1, 200)
             border = JBUI.Borders.compound(
                 JBUI.Borders.customLine(JBUI.CurrentTheme.ToolWindow.borderColor(), 1, 0, 0, 0),
                 JBUI.Borders.empty(5)
             )
         }
+        detailContent.add(detailScroll, BorderLayout.CENTER)
+        
+        val detailActions = JPanel(FlowLayout(FlowLayout.RIGHT)).apply {
+            add(closeDetailBtn)
+        }
+        detailContent.add(detailActions, BorderLayout.NORTH)
+        detailContent.isVisible = false
 
         // Bottom Actions
         val bottom = JPanel(BorderLayout()).apply {
@@ -110,15 +128,11 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         bottom.add(actionButtons, BorderLayout.WEST)
         bottom.add(statusLabel, BorderLayout.CENTER)
 
-        add(top, BorderLayout.CENTER)
-        add(detailScroll, BorderLayout.SOUTH)
-        add(bottom, BorderLayout.SOUTH) // This will overwrite detailScroll in BorderLayout, fixing below
-        
         // Correcting layout
-        removeAll()
         val content = JPanel(BorderLayout())
         content.add(top, BorderLayout.CENTER)
-        content.add(detailScroll, BorderLayout.SOUTH)
+        content.add(detailContent, BorderLayout.SOUTH)
+        
         add(content, BorderLayout.CENTER)
         add(bottom, BorderLayout.SOUTH)
 
@@ -126,8 +140,35 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         runSearch()
 
         resultsList.addListSelectionListener {
-            val r = resultsList.selectedValue ?: return@addListSelectionListener
-            updateDetail(r.entry)
+            val r = resultsList.selectedValue
+            if (r != null) {
+                updateDetail(r.entry)
+                detailContent.isVisible = true
+                revalidate()
+                repaint()
+            }
+        }
+
+        closeDetailBtn.addActionListener {
+            resultsList.clearSelection()
+            detailContent.isVisible = false
+            revalidate()
+            repaint()
+        }
+
+        firstBtn.addActionListener {
+            if (currentPage > 0) {
+                currentPage = 0
+                updatePage()
+            }
+        }
+
+        lastBtn.addActionListener {
+            val totalPages = maxOf(1, (fullResults.size + pageSize - 1) / pageSize)
+            if (currentPage < totalPages - 1) {
+                currentPage = totalPages - 1
+                updatePage()
+            }
         }
 
         prevBtn.addActionListener {
@@ -199,9 +240,13 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         for (i in start until end) {
             resultsModel.addElement(fullResults[i])
         }
-        pageLabel.text = "Page ${currentPage + 1} / ${maxOf(1, (fullResults.size + pageSize - 1) / pageSize)}"
+        val totalPages = maxOf(1, (fullResults.size + pageSize - 1) / pageSize)
+        pageLabel.text = "Page ${currentPage + 1} / $totalPages"
+        
+        firstBtn.isEnabled = currentPage > 0
         prevBtn.isEnabled = currentPage > 0
         nextBtn.isEnabled = (currentPage + 1) * pageSize < fullResults.size
+        lastBtn.isEnabled = (currentPage + 1) * pageSize < fullResults.size
     }
 
     private fun updateDetail(e: com.github.yohanki.egovconstant.data.StdEntry) {

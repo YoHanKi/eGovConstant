@@ -39,24 +39,35 @@ class DictionaryService(private val project: Project) {
         }
     }
 
-    fun loadFromJson(json: String, onDone: ((CanonicalStore.ImportSummary?) -> Unit)? = null) {
+    fun loadFromJson(
+        json: String, 
+        onDone: ((CanonicalStore.ImportSummary?) -> Unit)? = null,
+        onError: ((Exception) -> Unit)? = null
+    ) {
         val task = object : Task.Backgroundable(project, "Importing eGov Dictionary") {
             var summary: CanonicalStore.ImportSummary? = null
+            var error: Exception? = null
             override fun run(indicator: ProgressIndicator) {
                 try {
                     val gson = com.google.gson.Gson()
                     val type = object : com.google.gson.reflect.TypeToken<List<com.github.yohanki.egovconstant.data.StdEntryState>>() {}.type
                     val states = gson.fromJson<List<com.github.yohanki.egovconstant.data.StdEntryState>>(json, type)
+                    if (states == null) throw Exception("Empty or invalid JSON")
                     val entries = states.map { it.toEntry() }
                     summary = store.importEntries(entries)
                     index = DictionaryIndex(store.getEffectiveEntries())
                 } catch (e: Exception) {
                     log.warn("Failed to load JSON", e)
+                    error = e
                 }
             }
 
             override fun onFinished() {
-                onDone?.invoke(summary)
+                if (error != null) {
+                    onError?.invoke(error!!)
+                } else {
+                    onDone?.invoke(summary)
+                }
             }
         }
         ProgressManager.getInstance().run(task)
