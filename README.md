@@ -5,6 +5,8 @@
 [![Downloads](https://img.shields.io/jetbrains/plugin/d/MARKETPLACE_ID.svg)](https://plugins.jetbrains.com/plugin/MARKETPLACE_ID)
 
 <!-- Plugin description -->
+eGovConstant is an IntelliJ IDEA plugin that recommends standardized variable names (fields, parameters, local variables, constants, etc.) based on Korean government and public standard dictionaries.
+
 행정표준용어 및 공공기관 표준 사전을 기반으로 표준화된 변수명(필드, 파라미터, 지역 변수, 상수 등)을 추천해주는 IntelliJ IDEA 플러그인입니다.
 
 ### 주요 기능:
