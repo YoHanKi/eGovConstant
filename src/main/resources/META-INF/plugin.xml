@@ -10,6 +10,10 @@
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK1="true" supportsK2="true"/>
+    </extensions>
+
     <extensions defaultExtensionNs="com.intellij">
         <projectService serviceImplementation="com.github.yohanki.egovconstant.data.CanonicalStore"/>
         <toolWindow factoryClass="com.github.yohanki.egovconstant.ui.EgovToolWindowFactory" id="eGovConstant" icon="/icons/egov_e.svg"/>
