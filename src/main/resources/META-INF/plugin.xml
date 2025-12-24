@@ -5,11 +5,23 @@
     <vendor>yohanki</vendor>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode supportsK1="true" supportsK2="true"/>
+    </extensions>
+
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.yohanki.egovconstant.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
+        <projectService serviceImplementation="com.github.yohanki.egovconstant.data.CanonicalStore"/>
+        <toolWindow factoryClass="com.github.yohanki.egovconstant.ui.EgovToolWindowFactory" id="eGovConstant" icon="/icons/egov_e.svg"/>
         <postStartupActivity implementation="com.github.yohanki.egovconstant.startup.MyProjectActivity" />
+        <completion.contributor language="JAVA" implementationClass="com.github.yohanki.egovconstant.completion.EgovCompletionContributor"/>
+        <completion.contributor language="kotlin" implementationClass="com.github.yohanki.egovconstant.completion.EgovCompletionContributor"/>
+        <intentionAction>
+            <className>com.github.yohanki.egovconstant.intention.EgovRenameIntention</className>
+        </intentionAction>
     </extensions>
 </idea-plugin>
