@@ -9,8 +9,8 @@ class EgovToolWindowPanel(private val project: Project) : JBPanel<EgovToolWindow
     private val tabs = JBTabbedPane()
 
     init {
-        tabs.addTab("Search", EgovSearchPanel(project))
-        tabs.addTab("Settings", EgovSettingsPanel(project))
+        tabs.addTab("검색 (Search)", EgovSearchPanel(project))
+        tabs.addTab("설정 (Settings)", EgovSettingsPanel(project))
         add(tabs, BorderLayout.CENTER)
     }
 }

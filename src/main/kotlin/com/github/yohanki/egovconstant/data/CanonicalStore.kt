@@ -24,8 +24,15 @@ class CanonicalStore : PersistentStateComponent<CanonicalStore.State> {
 
     data class State(
         var userEntries: MutableList<StdEntryState> = mutableListOf(),
-        var lastImportSummary: ImportSummary? = null
-    )
+        var lastImportSummary: ImportSummary? = null,
+        var useCustomOnly: Boolean = false
+    ) {
+        val entryMap: Map<String, List<StdEntryState>>
+            get() = mapOf(
+                "DEFAULT" to emptyList(), // This is just for structure as defaults are loaded separately
+                "CUSTOM" to userEntries
+            )
+    }
 
     data class ImportSummary(
         var importedAt: Long = 0,
@@ -71,6 +78,11 @@ class CanonicalStore : PersistentStateComponent<CanonicalStore.State> {
 
     fun getEffectiveEntries(): List<StdEntry> {
         val userEntriesMapped = myState.userEntries.map { it.toEntry() }
+        
+        if (myState.useCustomOnly) {
+            return userEntriesMapped
+        }
+
         val mergedMap = mutableMapOf<String, StdEntry>()
 
         // Load defaults first

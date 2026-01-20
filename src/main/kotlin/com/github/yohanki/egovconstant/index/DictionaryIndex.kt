@@ -28,17 +28,24 @@ class DictionaryIndex(entries: List<StdEntry>) {
     data class Ranked(val entry: StdEntry, val score: Int)
 
     fun search(q: Query): List<Ranked> {
-        val filtered = if (q.text.isBlank()) {
+        val key = if (q.text.isNotBlank()) norm(q.text) else ""
+        
+        val filtered = if (key.isEmpty()) {
             all.asSequence()
         } else {
-            val key = norm(q.text)
             val candidates = mutableSetOf<StdEntry>()
             // direct bucket
             byToken[key]?.let { candidates.addAll(it) }
-            // prefix & contains
-            byToken.keys.filter { it.startsWith(key) || it.contains(key) }.forEach { k ->
-                byToken[k]?.let { candidates.addAll(it) }
+            
+            // prefix & contains - using a more efficient way might be possible if we have a lot of tokens,
+            // but for few thousands, this is usually fine.
+            // Optimization: Only scan keys if candidates are few or it's needed
+            for ((token, entries) in byToken) {
+                if (token.startsWith(key) || token.contains(key)) {
+                    candidates.addAll(entries)
+                }
             }
+            
             // fallback: all for fuzzy scan if none
             if (candidates.isEmpty()) candidates.addAll(all)
             candidates.asSequence()
@@ -48,11 +55,10 @@ class DictionaryIndex(entries: List<StdEntry>) {
             (q.domainCategory == null || e.domainCategory == q.domainCategory)
         }
 
-        if (q.text.isBlank()) {
+        if (key.isEmpty()) {
             return filtered.map { Ranked(it, 0) }.toList()
         }
 
-        val key = norm(q.text)
         return filtered.map { e -> e to score(e, key) }
             .filter { it.second > 0 }
             .sortedByDescending { it.second }

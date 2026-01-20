@@ -11,7 +11,16 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.util.messages.Topic
 import java.io.File
+
+interface DictionarySettingsListener {
+    fun onSettingsChanged()
+
+    companion object {
+        val TOPIC = Topic.create("eGovConstant Settings Changed", DictionarySettingsListener::class.java)
+    }
+}
 
 @Service(Service.Level.PROJECT)
 class DictionaryService(private val project: Project) {
@@ -56,6 +65,7 @@ class DictionaryService(private val project: Project) {
                     val entries = states.map { it.toEntry() }
                     summary = store.importEntries(entries)
                     index = DictionaryIndex(store.getEffectiveEntries())
+                    project.messageBus.syncPublisher(DictionarySettingsListener.TOPIC).onSettingsChanged()
                 } catch (e: Exception) {
                     log.warn("Failed to load JSON", e)
                     error = e
@@ -76,7 +86,16 @@ class DictionaryService(private val project: Project) {
     fun resetToDefault() {
         store.reset()
         index = DictionaryIndex(store.getEffectiveEntries())
+        project.messageBus.syncPublisher(DictionarySettingsListener.TOPIC).onSettingsChanged()
     }
+
+    var useCustomOnly: Boolean
+        get() = store.state.useCustomOnly
+        set(value) {
+            store.state.useCustomOnly = value
+            index = DictionaryIndex(store.getEffectiveEntries())
+            project.messageBus.syncPublisher(DictionarySettingsListener.TOPIC).onSettingsChanged()
+        }
 
     fun ensureLoaded(): Boolean {
         if (index == null) {

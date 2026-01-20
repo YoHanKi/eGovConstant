@@ -25,6 +25,7 @@ eGovConstant is an IntelliJ IDEA plugin that recommends standardized variable na
 3. **사용자 데이터 추가**:
    - `Settings` 탭에서 JSON 형식의 사전 데이터를 붙여넣고 "Import JSON"을 클릭합니다.
    - 데이터는 자동으로 검증되어 기존 사전과 병합됩니다.
+   - "커스텀 데이터만 사용" 체크박스를 선택하여 기본 데이터 제외하고 사용자가 추가한 데이터만 사용할 수 있습니다.
    - "Reset to Default"를 통해 언제든지 기본 상태로 초기화할 수 있습니다.
 4. **코드 작성 중 활용**: 
    - 변수 선언 시 자동 완성 목록에서 추천 이름을 선택합니다.

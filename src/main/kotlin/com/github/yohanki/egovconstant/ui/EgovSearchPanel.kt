@@ -4,6 +4,7 @@ import com.github.yohanki.egovconstant.data.EntryType
 import com.github.yohanki.egovconstant.index.DictionaryIndex
 import com.github.yohanki.egovconstant.naming.NameGenerator
 import com.github.yohanki.egovconstant.service.DictionaryService
+import com.github.yohanki.egovconstant.service.DictionarySettingsListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
@@ -19,8 +20,10 @@ import javax.swing.*
 class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val service = project.service<DictionaryService>()
 
-    private val searchField = JBTextField()
-    private val typeCombo = JComboBox(arrayOf("ALL", EntryType.TERM.name, EntryType.WORD.name, EntryType.DOMAIN.name))
+    private val searchField = JBTextField().apply {
+        emptyText.text = "검색어 입력..."
+    }
+    private val typeCombo = JComboBox(arrayOf("전체 (ALL)", EntryType.TERM.name, EntryType.WORD.name, EntryType.DOMAIN.name))
     private val resultsModel = DefaultListModel<DictionaryIndex.Ranked>()
     private val resultsList = JBList(resultsModel)
 
@@ -30,22 +33,22 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         background = JBUI.CurrentTheme.ToolWindow.background()
     }
 
-    private val closeDetailBtn = JButton("Close Details").apply {
+    private val closeDetailBtn = JButton("상세 닫기").apply {
         isFocusable = false
     }
 
-    private val firstBtn = JButton("<< First").apply { isFocusable = false }
-    private val lastBtn = JButton("Last >>").apply { isFocusable = false }
-    private val prevBtn = JButton("< Prev")
-    private val nextBtn = JButton("Next >")
-    private val pageLabel = JBLabel("Page 1")
+    private val firstBtn = JButton("<< 처음").apply { isFocusable = false }
+    private val lastBtn = JButton("마지막 >>").apply { isFocusable = false }
+    private val prevBtn = JButton("< 이전")
+    private val nextBtn = JButton("다음 >")
+    private val pageLabel = JBLabel("페이지 1")
     private var currentPage = 0
     private val pageSize = 100
     private var fullResults: List<DictionaryIndex.Ranked> = emptyList()
 
-    private val copyBtn = JButton("Copy name")
-    private val insertBtn = JButton("Insert at caret")
-    private val statusLabel = JBLabel("Status: ")
+    private val copyBtn = JButton("이름 복사")
+    private val insertBtn = JButton("코드 삽입")
+    private val statusLabel = JBLabel("상태: ")
 
     private lateinit var detailScroll: JScrollPane
 
@@ -139,6 +142,13 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         updateStatus()
         runSearch()
 
+        project.messageBus.connect().subscribe(DictionarySettingsListener.TOPIC, object : DictionarySettingsListener {
+            override fun onSettingsChanged() {
+                runSearch()
+                updateStatus()
+            }
+        })
+
         resultsList.addListSelectionListener {
             val r = resultsList.selectedValue
             if (r != null) {
@@ -217,10 +227,10 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
     private fun runSearch() {
         val text = searchField.text
         if (!service.ensureLoaded()) { updateStatus(); return }
-        val type = when (typeCombo.selectedItem as String) {
-            EntryType.TERM.name -> EntryType.TERM
-            EntryType.WORD.name -> EntryType.WORD
-            EntryType.DOMAIN.name -> EntryType.DOMAIN
+        val type = when (typeCombo.selectedIndex) {
+            1 -> EntryType.TERM
+            2 -> EntryType.WORD
+            3 -> EntryType.DOMAIN
             else -> null
         }
         val idx = service.getIndex() ?: return
@@ -241,7 +251,7 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
             resultsModel.addElement(fullResults[i])
         }
         val totalPages = maxOf(1, (fullResults.size + pageSize - 1) / pageSize)
-        pageLabel.text = "Page ${currentPage + 1} / $totalPages"
+        pageLabel.text = "페이지 ${currentPage + 1} / $totalPages"
         
         firstBtn.isEnabled = currentPage > 0
         prevBtn.isEnabled = currentPage > 0
@@ -253,23 +263,23 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
         val html = buildString {
             append("<html><body style='font-family: sans-serif; font-size: 11pt;'>")
             append("<h3 style='margin-bottom: 5px;'>${e.koName} <span style='color: gray; font-weight: normal;'>(${e.enAbbr ?: e.enName ?: "-"})</span></h3>")
-            append("<div style='margin-bottom: 10px;'><b>Type:</b> ${e.type} | <b>Source:</b> ${e.source}</div>")
+            append("<div style='margin-bottom: 10px;'><b>유형:</b> ${e.type} | <b>출처:</b> ${e.source}</div>")
 
             if (!e.description.isNullOrBlank()) {
-                append("<p><b>Description:</b><br/>${e.description}</p>")
+                append("<p><b>설명:</b><br/>${e.description}</p>")
             }
 
             if (e.synonyms.isNotEmpty()) {
-                append("<p><b>Synonyms:</b> ${e.synonyms.joinToString(", ")}</p>")
+                append("<p><b>동의어:</b> ${e.synonyms.joinToString(", ")}</p>")
             }
 
             if (e.type == EntryType.DOMAIN || !e.domainName.isNullOrBlank()) {
                 append("<hr/>")
-                append("<p><b>Domain Info:</b><br/>")
-                append("Name: ${e.domainName ?: "-"}<br/>")
-                append("Type: ${e.dataType ?: "-"} (${e.dataLength ?: "-"}${if (!e.dataScale.isNullOrBlank()) ", " + e.dataScale else ""})<br/>")
+                append("<p><b>도메인 정보:</b><br/>")
+                append("명칭: ${e.domainName ?: "-"}<br/>")
+                append("유형: ${e.dataType ?: "-"} (${e.dataLength ?: "-"}${if (!e.dataScale.isNullOrBlank()) ", " + e.dataScale else ""})<br/>")
                 if (!e.allowedValues.isNullOrBlank()) {
-                    append("Allowed: ${e.allowedValues}<br/>")
+                    append("허용값: ${e.allowedValues}<br/>")
                 }
                 append("</p>")
             }
