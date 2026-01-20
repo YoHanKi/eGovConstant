@@ -37,25 +37,45 @@ class EgovCompletionContributor : CompletionContributor() {
 
         val project = parameters.editor.project ?: return
         val service = project.service<DictionaryService>()
-        val prefix = result.prefixMatcher.prefix
+        val fullPrefix = result.prefixMatcher.prefix
         
-        if (prefix.isEmpty()) return
+        if (fullPrefix.isEmpty()) return
         
+        // Handle CamelCase: if adminU, we might want to search for 'U' as well
+        val searchPrefix = if (fullPrefix.any { it.isUpperCase() }) {
+            fullPrefix.substring(fullPrefix.indexOfLast { it.isUpperCase() })
+        } else {
+            fullPrefix
+        }
+
         if (!service.ensureLoaded()) return
         val idx = service.getIndex() ?: return
-        val list = idx.search(DictionaryIndex.Query(text = prefix)).take(20)
+        
+        // Search with the detected prefix
+        val list = idx.search(DictionaryIndex.Query(text = searchPrefix)).take(40)
+        
         for (r in list) {
             val entry = r.entry
             val base = entry.enAbbr ?: entry.enName ?: entry.koName
             val camel = NameGenerator.fromAbbreviation(base).camel
             
-            val lookupElement = LookupElementBuilder.create(camel)
+            // If we are completing a camelCase part, we should adjust the lookup string
+            // e.g., if prefix is 'adminU' and we found 'User', we want to offer 'adminUser'
+            val insertString = if (searchPrefix != fullPrefix) {
+                fullPrefix.substring(0, fullPrefix.length - searchPrefix.length) + camel.replaceFirstChar { it.uppercase() }
+            } else {
+                camel
+            }
+            
+            val lookupElement = LookupElementBuilder.create(insertString)
                 .let { if (eIcon != null) it.withIcon(eIcon) else it }
                 .withPresentableText(camel)
                 .withTailText(" (${entry.koName})", true)
                 .withTypeText(entry.type.name, true)
+                .withLookupString(camel) // Allow matching by the original name too
+                .withLookupString(entry.koName)
             
-            result.addElement(lookupElement)
+            result.addElement(PrioritizedLookupElement.withPriority(lookupElement, r.score.toDouble()))
         }
     }
 

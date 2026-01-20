@@ -2,6 +2,35 @@
 
 # eGovConstant Changelog
 
-## [Unreleased]
+## [1.4.0]
 ### Added
-- Initial scaffold created from [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
+- 검색 추천 알고리즘 고도화 (가중치 기반 스코어링 및 유사도 개선).
+- CamelCase 대응 자동 완성 지원 (예: adminU 입력 시 'U'로 시작하는 용어 추천).
+- 자동 완성 추천 개수 확대 (20개 -> 40개).
+- 검색 결과 페이지당 표시 개수 설정 기능 추가 (50, 100, 200, 500).
+
+## [1.3.0]
+### Added
+- UI 한글화 지원 (Search 및 Settings 탭).
+- "커스텀 데이터만 사용" 옵션 실시간 반영 기능 추가.
+- 설정 변경 시 검색 결과 및 상태 라벨 즉시 업데이트.
+- 검색 엔진 최적화 (불필요한 컬렉션 생성 방지).
+
+## [1.2.0]
+### Added
+- 설정에서 JSON 템플릿 자동 완성 지원(‘{’ 입력 시 템플릿 삽입).
+- "커스텀 데이터만 사용" 동작 개선(커스텀 데이터가 없으면 아무것도 표시하지 않음).
+- 내부 상태를 DEFAULT/CUSTOM 데이터를 위한 Map 기반 구조 개념으로 리팩터링.
+- "커스텀 데이터만 사용" 설정값의 영속 저장(유지) 문제 수정.
+
+## [1.1.0]
+### Added
+- 설정에 "커스텀 데이터만 사용" 토글을 추가하여 항목 필터링 지원.
+- CanonicalStore의 데이터 관리 방식 개선.
+
+## [1.0.0]
+### Added
+- 최초 릴리스.
+- 전자정부(eGov) 표준 용어/단어/도메인 지원.
+- 커스텀 JSON 사전 가져오기 지원.
+- 변수 검색 및 자동 완성 지원.

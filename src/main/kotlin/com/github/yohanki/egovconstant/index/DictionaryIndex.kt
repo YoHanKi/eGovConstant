@@ -28,17 +28,24 @@ class DictionaryIndex(entries: List<StdEntry>) {
     data class Ranked(val entry: StdEntry, val score: Int)
 
     fun search(q: Query): List<Ranked> {
-        val filtered = if (q.text.isBlank()) {
+        val key = if (q.text.isNotBlank()) norm(q.text) else ""
+        
+        val filtered = if (key.isEmpty()) {
             all.asSequence()
         } else {
-            val key = norm(q.text)
             val candidates = mutableSetOf<StdEntry>()
             // direct bucket
             byToken[key]?.let { candidates.addAll(it) }
-            // prefix & contains
-            byToken.keys.filter { it.startsWith(key) || it.contains(key) }.forEach { k ->
-                byToken[k]?.let { candidates.addAll(it) }
+            
+            // prefix & contains - using a more efficient way might be possible if we have a lot of tokens,
+            // but for few thousands, this is usually fine.
+            // Optimization: Only scan keys if candidates are few or it's needed
+            for ((token, entries) in byToken) {
+                if (token.startsWith(key) || token.contains(key)) {
+                    candidates.addAll(entries)
+                }
             }
+            
             // fallback: all for fuzzy scan if none
             if (candidates.isEmpty()) candidates.addAll(all)
             candidates.asSequence()
@@ -48,11 +55,10 @@ class DictionaryIndex(entries: List<StdEntry>) {
             (q.domainCategory == null || e.domainCategory == q.domainCategory)
         }
 
-        if (q.text.isBlank()) {
+        if (key.isEmpty()) {
             return filtered.map { Ranked(it, 0) }.toList()
         }
 
-        val key = norm(q.text)
         return filtered.map { e -> e to score(e, key) }
             .filter { it.second > 0 }
             .sortedByDescending { it.second }
@@ -63,22 +69,63 @@ class DictionaryIndex(entries: List<StdEntry>) {
     private fun score(e: StdEntry, key: String): Int {
         var s = 0
         fun bump(weight: Int) { s += weight }
-        // consider koName, enAbbr, enName, description, synonyms
-        val fields = listOfNotNull(e.koName, e.enAbbr, e.enName, e.description) + e.synonyms
-        for (f in fields) {
-            val n = norm(f)
-            if (n == key) bump(1000)
-            else if (n.startsWith(key)) bump(400)
-            else if (n.contains(key)) bump(200)
-            else {
-                val d = dist(n, key)
-                if (d <= min(2, key.length / 2)) bump(50 - d * 10)
+        
+        // Match weights
+        val EXACT_MATCH = 2000
+        val PREFIX_MATCH = 800
+        val CONTAINS_MATCH = 400
+        val SYNONYM_BOOST = 200
+        val DESCRIPTION_BOOST = 50
+
+        // 1. Korean Name Match (Highest priority)
+        val koNorm = norm(e.koName)
+        if (koNorm == key) bump(EXACT_MATCH)
+        else if (koNorm.startsWith(key)) bump(PREFIX_MATCH)
+        else if (koNorm.contains(key)) bump(CONTAINS_MATCH)
+
+        // 2. English Abbreviation Match
+        val abbrNorm = e.enAbbr?.let { norm(it) }
+        if (abbrNorm != null) {
+            if (abbrNorm == key) bump(EXACT_MATCH - 100)
+            else if (abbrNorm.startsWith(key)) bump(PREFIX_MATCH - 50)
+            else if (abbrNorm.contains(key)) bump(CONTAINS_MATCH - 20)
+        }
+
+        // 3. English Name Match
+        val enNorm = e.enName?.let { norm(it) }
+        if (enNorm != null) {
+            if (enNorm == key) bump(EXACT_MATCH - 200)
+            else if (enNorm.startsWith(key)) bump(PREFIX_MATCH - 100)
+            else if (enNorm.contains(key)) bump(CONTAINS_MATCH - 50)
+        }
+
+        // 4. Synonym Boost
+        for (syn in e.synonyms) {
+            val synNorm = norm(syn)
+            if (synNorm == key) bump(SYNONYM_BOOST)
+            else if (synNorm.startsWith(key)) bump(SYNONYM_BOOST / 2)
+        }
+
+        // 5. Description Boost
+        if (e.description?.let { norm(it) }?.contains(key) == true) {
+            bump(DESCRIPTION_BOOST)
+        }
+
+        // 6. Fuzzy Match (Only if score is low or matches were weak)
+        if (s < CONTAINS_MATCH) {
+            val d = dist(koNorm, key)
+            if (d <= minOf(2, key.length / 2)) {
+                bump(100 - d * 30)
             }
         }
-        // description boost (lower than name)
-        if (e.description?.let { norm(it) }?.contains(key) == true) bump(50)
-        // synonym boost
-        if (e.synonyms.any { norm(it) == key || norm(it).startsWith(key) }) bump(100)
+
+        // 7. Type weight (Terms > Words > Domains)
+        when (e.type) {
+            EntryType.TERM -> bump(30)
+            EntryType.WORD -> bump(20)
+            EntryType.DOMAIN -> bump(10)
+        }
+
         return s
     }
 

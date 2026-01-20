@@ -11,8 +11,11 @@ import javax.swing.*
 class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
     private val service = project.service<DictionaryService>()
     private val importBtn = JButton("Import JSON")
-    private val resetBtn = JButton("Reset to Default")
-    private val statusLabel = JBLabel("Status: Ready")
+    private val resetBtn = JButton("초기화 (Reset)")
+    private val useCustomOnlyCb = JCheckBox("커스텀 데이터만 사용").apply {
+        isSelected = service.useCustomOnly
+    }
+    private val statusLabel = JBLabel("상태: 준비됨")
 
     private val exampleJson = """
         [
@@ -39,6 +42,38 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
     }
 
     init {
+        jsonArea.addKeyListener(object : java.awt.event.KeyAdapter() {
+            override fun keyTyped(e: java.awt.event.KeyEvent) {
+                if (e.keyChar == '{') {
+                    // Check if we should insert template
+                    val currentText = jsonArea.text
+                    val isPlaceholder = currentText == exampleJson
+                    
+                    val template = """{
+    "type": "",
+    "koName": "",
+    "enAbbr": "",
+    "enName": "",
+    "description": ""
+  }"""
+                    
+                    if (isPlaceholder) {
+                        jsonArea.text = ""
+                        jsonArea.foreground = JBUI.CurrentTheme.Label.foreground()
+                    }
+                    
+                    val caret = jsonArea.caretPosition
+                    val doc = jsonArea.document
+                    try {
+                        e.consume()
+                        doc.insertString(caret, template, null)
+                        jsonArea.caretPosition = caret + template.indexOf("\"type\": \"") + 9
+                    } catch (ex: Exception) {
+                    }
+                }
+            }
+        })
+
         jsonArea.addFocusListener(object : java.awt.event.FocusAdapter() {
             override fun focusGained(e: java.awt.event.FocusEvent?) {
                 if (jsonArea.text == exampleJson) {
@@ -48,7 +83,7 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
             }
 
             override fun focusLost(e: java.awt.event.FocusEvent?) {
-                if (jsonArea.text.isEmpty()) {
+                if (jsonArea.text.isEmpty() || jsonArea.text.isBlank()) {
                     jsonArea.text = exampleJson
                     jsonArea.foreground = Color.GRAY
                 }
@@ -57,7 +92,7 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
 
         val top = JPanel(BorderLayout()).apply {
             border = JBUI.Borders.empty(5)
-            add(JBLabel("Paste JSON Dictionary (see example below):"), BorderLayout.NORTH)
+            add(JBLabel("JSON 사전을 붙여넣으세요 (아래 예시 참고):"), BorderLayout.NORTH)
         }
         
         val scroll = JScrollPane(jsonArea).apply {
@@ -68,6 +103,7 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
             border = JBUI.Borders.empty(5)
             add(importBtn)
             add(resetBtn)
+            add(useCustomOnlyCb)
             add(statusLabel)
         }
 
@@ -75,27 +111,29 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
         add(scroll, BorderLayout.CENTER)
         add(bottom, BorderLayout.SOUTH)
 
+        useCustomOnlyCb.addActionListener {
+            service.useCustomOnly = useCustomOnlyCb.isSelected
+        }
+
         importBtn.addActionListener {
             val json = jsonArea.text
             if (json.isBlank() || json == exampleJson) {
-                statusLabel.text = "Status: JSON is empty"
+                statusLabel.text = "상태: JSON이 비어있음"
                 return@addActionListener
             }
             service.loadFromJson(json, { summary ->
-                statusLabel.text = "Status: Imported successfully"
-                jsonArea.text = ""
-                if (jsonArea.isFocusOwner.not()) {
-                    jsonArea.text = exampleJson
-                    jsonArea.foreground = Color.GRAY
-                }
+                statusLabel.text = "상태: 성공적으로 가져옴"
+                jsonArea.text = exampleJson
+                jsonArea.foreground = Color.GRAY
             }, { error ->
-                statusLabel.text = "Error: Invalid JSON format - ${error.message}"
+                statusLabel.text = "오류: 잘못된 JSON 형식 - ${error.message}"
             })
         }
 
         resetBtn.addActionListener {
             service.resetToDefault()
-            statusLabel.text = "Status: Reset to default"
+            useCustomOnlyCb.isSelected = service.useCustomOnly
+            statusLabel.text = "상태: 초기화됨"
         }
     }
 }
