@@ -34,9 +34,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.opentest4j)
 
-    // Apache POI for XLSX parsing
-    implementation("org.apache.poi:poi-ooxml:5.2.5")
-
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
         intellijIdea(providers.gradleProperty("platformVersion"))
@@ -138,12 +135,6 @@ tasks {
         dependsOn(patchChangelog)
     }
 
-    register<JavaExec>("convertXlsxToJson") {
-        group = "verification"
-        description = "Converts XLSX to JSON"
-        mainClass.set("com.github.yohanki.egovconstant.data.JsonConverterKt")
-        classpath = sourceSets["main"].runtimeClasspath + sourceSets["main"].compileClasspath
-    }
 }
 
 intellijPlatformTesting {
