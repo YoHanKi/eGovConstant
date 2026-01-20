@@ -43,8 +43,18 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val nextBtn = JButton("다음 >")
     private val pageLabel = JBLabel("페이지 1")
     private var currentPage = 0
-    private val pageSize = 100
+    private var pageSize = 100
     private var fullResults: List<DictionaryIndex.Ranked> = emptyList()
+
+    private val pageSizeCombo = JComboBox(arrayOf(50, 100, 200, 500)).apply {
+        selectedItem = 100
+        isFocusable = false
+        addActionListener {
+            pageSize = selectedItem as Int
+            currentPage = 0
+            updatePage()
+        }
+    }
 
     private val copyBtn = JButton("이름 복사")
     private val insertBtn = JButton("코드 삽입")
@@ -97,6 +107,9 @@ class EgovSearchPanel(private val project: Project) : JPanel(BorderLayout()) {
             add(pageLabel)
             add(nextBtn)
             add(lastBtn)
+            add(JSeparator(JSeparator.VERTICAL))
+            add(JBLabel("표시 개수:"))
+            add(pageSizeCombo)
         }
 
         val center = JPanel(BorderLayout())
