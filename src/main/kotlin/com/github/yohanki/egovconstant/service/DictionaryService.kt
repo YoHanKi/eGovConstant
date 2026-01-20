@@ -1,7 +1,6 @@
 package com.github.yohanki.egovconstant.service
 
 import com.github.yohanki.egovconstant.data.CanonicalStore
-import com.github.yohanki.egovconstant.data.ExcelDictionaryLoader
 import com.github.yohanki.egovconstant.data.StdEntry
 import com.github.yohanki.egovconstant.data.toEntry
 import com.github.yohanki.egovconstant.index.DictionaryIndex
