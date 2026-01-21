@@ -11,6 +11,4 @@ class EgovToolWindowFactory : ToolWindowFactory {
         val content = ContentFactory.getInstance().createContent(panel, null, false)
         toolWindow.contentManager.addContent(content)
     }
-
-    override fun shouldBeAvailable(project: Project) = true
 }
