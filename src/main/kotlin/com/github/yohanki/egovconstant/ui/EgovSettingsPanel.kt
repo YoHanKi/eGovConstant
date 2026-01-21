@@ -3,6 +3,7 @@ package com.github.yohanki.egovconstant.ui
 import com.github.yohanki.egovconstant.service.DictionaryService
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.*
 import com.intellij.util.ui.JBUI
 import java.awt.*
@@ -10,12 +11,12 @@ import javax.swing.*
 
 class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
     private val service = project.service<DictionaryService>()
-    private val importBtn = JButton("Import JSON")
-    private val resetBtn = JButton("초기화 (Reset)")
+    private val importBtn = JButton("JSON 추가").apply { margin = JBUI.insets(2) }
+    private val resetBtn = JButton("초기화").apply { margin = JBUI.insets(2) }
     private val useCustomOnlyCb = JCheckBox("커스텀 데이터만 사용").apply {
         isSelected = service.useCustomOnly
     }
-    private val statusLabel = JBLabel("상태: 준비됨")
+    private val statusLabel = JLabel("상태: 준비됨")
 
     private val exampleJson = """
         [
@@ -38,18 +39,17 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
         lineWrap = true
         wrapStyleWord = true
         text = exampleJson
-        foreground = Color.GRAY
+        foreground = JBColor.GRAY
     }
 
     init {
         jsonArea.addKeyListener(object : java.awt.event.KeyAdapter() {
             override fun keyTyped(e: java.awt.event.KeyEvent) {
                 if (e.keyChar == '{') {
-                    // Check if we should insert template
                     val currentText = jsonArea.text
                     val isPlaceholder = currentText == exampleJson
                     
-                    val template = """{
+                    val template = """  {
     "type": "",
     "koName": "",
     "enAbbr": "",
@@ -85,7 +85,7 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
             override fun focusLost(e: java.awt.event.FocusEvent?) {
                 if (jsonArea.text.isEmpty() || jsonArea.text.isBlank()) {
                     jsonArea.text = exampleJson
-                    jsonArea.foreground = Color.GRAY
+                    jsonArea.foreground = JBColor.GRAY
                 }
             }
         })
@@ -99,12 +99,21 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
             border = JBUI.Borders.empty(5)
         }
         
-        val bottom = JPanel(FlowLayout(FlowLayout.LEFT)).apply {
+        val bottom = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = JBUI.Borders.empty(5)
-            add(importBtn)
-            add(resetBtn)
-            add(useCustomOnlyCb)
-            add(statusLabel)
+            
+            val buttonPanel = JPanel(FlowLayout(FlowLayout.LEFT, 2, 2)).apply {
+                add(importBtn)
+                add(resetBtn)
+                add(statusLabel)
+            }
+            add(buttonPanel)
+            
+            val customOnlyPanel = JPanel(FlowLayout(FlowLayout.LEFT, 5, 0)).apply {
+                add(useCustomOnlyCb)
+            }
+            add(customOnlyPanel)
         }
 
         add(top, BorderLayout.NORTH)
@@ -124,7 +133,7 @@ class EgovSettingsPanel(project: Project) : JPanel(BorderLayout()) {
             service.loadFromJson(json, { summary ->
                 statusLabel.text = "상태: 성공적으로 가져옴"
                 jsonArea.text = exampleJson
-                jsonArea.foreground = Color.GRAY
+                jsonArea.foreground = JBColor.GRAY
             }, { error ->
                 statusLabel.text = "오류: 잘못된 JSON 형식 - ${error.message}"
             })

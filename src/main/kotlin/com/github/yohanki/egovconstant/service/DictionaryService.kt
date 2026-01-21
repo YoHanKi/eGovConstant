@@ -41,9 +41,9 @@ class DictionaryService(private val project: Project) {
         val count = effective.size
         val summary = store.state.lastImportSummary
         return if (summary != null) {
-            "Loaded $count entries. Last import: ${java.time.Instant.ofEpochMilli(summary.importedAt)}. Added: ${summary.addedCount}, Merged: ${summary.mergedCount}"
+            "총 $count 개의 변수. 추가된 변수: ${java.time.Instant.ofEpochMilli(summary.importedAt)}. 추가: ${summary.addedCount}, 병합: ${summary.mergedCount}"
         } else {
-            "Loaded $count entries (default)."
+            "총 $count 개의 변수 (기본 값)"
         }
     }
 
