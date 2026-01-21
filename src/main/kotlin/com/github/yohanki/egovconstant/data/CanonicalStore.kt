@@ -1,18 +1,16 @@
 package com.github.yohanki.egovconstant.data
 
-import com.github.yohanki.egovconstant.data.StdEntry
-import com.intellij.openapi.application.PathManager
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.diagnostic.Logger
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import java.io.InputStreamReader
-import java.nio.file.Path
 import java.time.Instant
 
+@Service(Service.Level.PROJECT)
 @State(
     name = "com.github.yohanki.egovconstant.data.CanonicalStore",
     storages = [Storage("eGovConstant.xml")],
