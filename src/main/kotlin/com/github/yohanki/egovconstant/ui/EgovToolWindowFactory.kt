@@ -6,6 +6,11 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
 
 class EgovToolWindowFactory : ToolWindowFactory {
+
+    override fun shouldBeAvailable(project: Project): Boolean {
+        return true
+    }
+
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val panel = EgovToolWindowPanel(project)
         val content = ContentFactory.getInstance().createContent(panel, null, false)

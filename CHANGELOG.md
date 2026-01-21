@@ -1,6 +1,11 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
 # eGovConstant Changelog
+
+## [1.5.2]
+### Fixed
+- 사용 중지된(Deprecated) 및 실험적(Experimental) API 사용 제거를 통한 플러그인 안정성 강화.
+- icon 변경 및 ToolWindowFactory 수정.
     
 ## [1.5.1]
 ### Fixed

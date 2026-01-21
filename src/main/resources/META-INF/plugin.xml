@@ -79,7 +79,6 @@
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <projectService serviceImplementation="com.github.yohanki.egovconstant.data.CanonicalStore"/>
         <toolWindow factoryClass="com.github.yohanki.egovconstant.ui.EgovToolWindowFactory" id="eGovConstant" icon="/icons/egov_e.svg" doNotActivateOnStart="true"/>
         <completion.contributor language="JAVA" implementationClass="com.github.yohanki.egovconstant.completion.EgovCompletionContributor"/>
         <completion.contributor language="kotlin" implementationClass="com.github.yohanki.egovconstant.completion.EgovCompletionContributor"/>
