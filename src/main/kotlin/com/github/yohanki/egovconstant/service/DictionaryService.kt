@@ -96,6 +96,20 @@ class DictionaryService(private val project: Project) {
             project.messageBus.syncPublisher(DictionarySettingsListener.TOPIC).onSettingsChanged()
         }
 
+    var completionEnabled: Boolean
+        get() = store.state.completionEnabled
+        set(value) {
+            store.state.completionEnabled = value
+            project.messageBus.syncPublisher(DictionarySettingsListener.TOPIC).onSettingsChanged()
+        }
+
+    var completionCount: Int
+        get() = store.state.completionCount
+        set(value) {
+            store.state.completionCount = value
+            project.messageBus.syncPublisher(DictionarySettingsListener.TOPIC).onSettingsChanged()
+        }
+
     fun ensureLoaded(): Boolean {
         if (index == null) {
             index = DictionaryIndex(store.getEffectiveEntries())

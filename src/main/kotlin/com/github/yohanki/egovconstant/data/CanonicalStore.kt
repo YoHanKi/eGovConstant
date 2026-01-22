@@ -23,7 +23,9 @@ class CanonicalStore : PersistentStateComponent<CanonicalStore.State> {
     data class State(
         var userEntries: MutableList<StdEntryState> = mutableListOf(),
         var lastImportSummary: ImportSummary? = null,
-        var useCustomOnly: Boolean = false
+        var useCustomOnly: Boolean = false,
+        var completionEnabled: Boolean = true,
+        var completionCount: Int = 40
     ) {
         val entryMap: Map<String, List<StdEntryState>>
             get() = mapOf(

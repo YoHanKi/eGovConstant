@@ -7,13 +7,63 @@ import kotlin.math.min
 
 class DictionaryIndex(entries: List<StdEntry>) {
     private val all: List<StdEntry> = entries
-    private val byToken: MutableMap<String, MutableList<StdEntry>> = ConcurrentHashMap()
+    private val normalizedCache = ConcurrentHashMap<StdEntry, NormalizedEntry>()
+    private val trie = TrieNode()
+
+    private class TrieNode {
+        val children = mutableMapOf<Char, TrieNode>()
+        val entries = mutableSetOf<StdEntry>()
+
+        fun insert(key: String, entry: StdEntry) {
+            var curr = this
+            for (char in key) {
+                curr = curr.children.getOrPut(char) { TrieNode() }
+            }
+            curr.entries.add(entry)
+        }
+
+        fun find(key: String): TrieNode? {
+            var curr = this
+            for (char in key) {
+                curr = curr.children[char] ?: return null
+            }
+            return curr
+        }
+
+        fun collectAll(result: MutableSet<StdEntry>, limit: Int) {
+            if (result.size >= limit) return
+            result.addAll(entries)
+            for (child in children.values) {
+                if (result.size >= limit) return
+                child.collectAll(result, limit)
+            }
+        }
+    }
+
+    private class NormalizedEntry(
+        val entry: StdEntry,
+        val ko: String,
+        val abbr: String?,
+        val en: String?,
+        val synonyms: List<String>,
+        val desc: String?
+    )
 
     init {
         for (e in entries) {
+            val ne = NormalizedEntry(
+                e,
+                norm(e.koName),
+                e.enAbbr?.let { norm(it) },
+                e.enName?.let { norm(it) },
+                e.synonyms.map { norm(it) },
+                e.description?.let { norm(it) }
+            )
+            normalizedCache[e] = ne
+
             for (t in e.allTokens()) {
                 val key = norm(t)
-                byToken.computeIfAbsent(key) { mutableListOf() }.add(e)
+                trie.insert(key, e)
             }
         }
     }
@@ -27,48 +77,42 @@ class DictionaryIndex(entries: List<StdEntry>) {
 
     data class Ranked(val entry: StdEntry, val score: Int)
 
-    fun search(q: Query): List<Ranked> {
+    fun search(q: Query, limit: Int = Int.MAX_VALUE): List<Ranked> {
         val key = if (q.text.isNotBlank()) norm(q.text) else ""
         
-        val filtered = if (key.isEmpty()) {
+        val sequence = if (key.isEmpty()) {
             all.asSequence()
         } else {
             val candidates = mutableSetOf<StdEntry>()
-            // direct bucket
-            byToken[key]?.let { candidates.addAll(it) }
-            
-            // prefix & contains - using a more efficient way might be possible if we have a lot of tokens,
-            // but for few thousands, this is usually fine.
-            // Optimization: Only scan keys if candidates are few or it's needed
-            for ((token, entries) in byToken) {
-                if (token.startsWith(key) || token.contains(key)) {
-                    candidates.addAll(entries)
-                }
-            }
+            // Trie prefix search
+            trie.find(key)?.collectAll(candidates, limit)
             
             // fallback: all for fuzzy scan if none
             if (candidates.isEmpty()) candidates.addAll(all)
             candidates.asSequence()
-        }.filter { e ->
+        }
+
+        val filtered = sequence.filter { e ->
             (q.type == null || e.type == q.type) &&
             (q.domainGroup == null || e.domainGroup == q.domainGroup) &&
             (q.domainCategory == null || e.domainCategory == q.domainCategory)
         }
 
         if (key.isEmpty()) {
-            return filtered.map { Ranked(it, 0) }.toList()
+            return filtered.take(limit).map { Ranked(it, 0) }.toList()
         }
 
         return filtered.map { e -> e to score(e, key) }
             .filter { it.second > 0 }
             .sortedByDescending { it.second }
+            .take(limit)
             .map { Ranked(it.first, it.second) }
             .toList()
     }
 
     private fun score(e: StdEntry, key: String): Int {
+        val ne = normalizedCache[e] ?: return 0
         var s = 0
-        fun bump(weight: Int) { s += weight }
         
         // Match weights
         val EXACT_MATCH = 2000
@@ -78,52 +122,51 @@ class DictionaryIndex(entries: List<StdEntry>) {
         val DESCRIPTION_BOOST = 50
 
         // 1. Korean Name Match (Highest priority)
-        val koNorm = norm(e.koName)
-        if (koNorm == key) bump(EXACT_MATCH)
-        else if (koNorm.startsWith(key)) bump(PREFIX_MATCH)
-        else if (koNorm.contains(key)) bump(CONTAINS_MATCH)
+        val koNorm = ne.ko
+        if (koNorm == key) s += EXACT_MATCH
+        else if (koNorm.startsWith(key)) s += PREFIX_MATCH
+        else if (koNorm.contains(key)) s += CONTAINS_MATCH
 
         // 2. English Abbreviation Match
-        val abbrNorm = e.enAbbr?.let { norm(it) }
+        val abbrNorm = ne.abbr
         if (abbrNorm != null) {
-            if (abbrNorm == key) bump(EXACT_MATCH - 100)
-            else if (abbrNorm.startsWith(key)) bump(PREFIX_MATCH - 50)
-            else if (abbrNorm.contains(key)) bump(CONTAINS_MATCH - 20)
+            if (abbrNorm == key) s += EXACT_MATCH - 100
+            else if (abbrNorm.startsWith(key)) s += PREFIX_MATCH - 50
+            else if (abbrNorm.contains(key)) s += CONTAINS_MATCH - 20
         }
 
         // 3. English Name Match
-        val enNorm = e.enName?.let { norm(it) }
+        val enNorm = ne.en
         if (enNorm != null) {
-            if (enNorm == key) bump(EXACT_MATCH - 200)
-            else if (enNorm.startsWith(key)) bump(PREFIX_MATCH - 100)
-            else if (enNorm.contains(key)) bump(CONTAINS_MATCH - 50)
+            if (enNorm == key) s += EXACT_MATCH - 200
+            else if (enNorm.startsWith(key)) s += PREFIX_MATCH - 100
+            else if (enNorm.contains(key)) s += CONTAINS_MATCH - 50
         }
 
         // 4. Synonym Boost
-        for (syn in e.synonyms) {
-            val synNorm = norm(syn)
-            if (synNorm == key) bump(SYNONYM_BOOST)
-            else if (synNorm.startsWith(key)) bump(SYNONYM_BOOST / 2)
+        for (synNorm in ne.synonyms) {
+            if (synNorm == key) s += SYNONYM_BOOST
+            else if (synNorm.startsWith(key)) s += SYNONYM_BOOST / 2
         }
 
         // 5. Description Boost
-        if (e.description?.let { norm(it) }?.contains(key) == true) {
-            bump(DESCRIPTION_BOOST)
+        if (ne.desc?.contains(key) == true) {
+            s += DESCRIPTION_BOOST
         }
 
         // 6. Fuzzy Match (Only if score is low or matches were weak)
         if (s < CONTAINS_MATCH) {
             val d = dist(koNorm, key)
             if (d <= minOf(2, key.length / 2)) {
-                bump(100 - d * 30)
+                s += 100 - d * 30
             }
         }
 
         // 7. Type weight (Terms > Words > Domains)
-        when (e.type) {
-            EntryType.TERM -> bump(30)
-            EntryType.WORD -> bump(20)
-            EntryType.DOMAIN -> bump(10)
+        s += when (e.type) {
+            EntryType.TERM -> 30
+            EntryType.WORD -> 20
+            EntryType.DOMAIN -> 10
         }
 
         return s

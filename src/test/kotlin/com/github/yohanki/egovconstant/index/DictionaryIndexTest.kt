@@ -40,4 +40,24 @@ class DictionaryIndexTest {
         val results = idx.search(DictionaryIndex.Query(text = "테스"))
         assertEquals(e1, results.first().entry)
     }
+
+    @Test
+    fun testTriePrefixSearch() {
+        val e1 = entry(EntryType.WORD, "학교", "SCHOOL")
+        val e2 = entry(EntryType.WORD, "학생", "STUDENT")
+        val e3 = entry(EntryType.WORD, "학원", "ACADEMY")
+        val idx = DictionaryIndex(listOf(e1, e2, e3))
+
+        // "학"으로 검색 시 학교, 학생, 학원이 모두 나와야 함
+        val results = idx.search(DictionaryIndex.Query(text = "학"))
+        assertEquals(3, results.size)
+        val entries = results.map { it.entry }.toSet()
+        assert(entries.contains(e1))
+        assert(entries.contains(e2))
+        assert(entries.contains(e3))
+
+        // "학교"로 검색 시 학교만 나와야 함 (또는 점수가 압도적으로 높아야 함)
+        val results2 = idx.search(DictionaryIndex.Query(text = "학교"))
+        assertEquals(e1, results2.first().entry)
+    }
 }

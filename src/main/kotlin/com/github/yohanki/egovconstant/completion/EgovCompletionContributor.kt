@@ -37,45 +37,41 @@ class EgovCompletionContributor : CompletionContributor() {
 
         val project = parameters.editor.project ?: return
         val service = project.service<DictionaryService>()
+        if (!service.completionEnabled) return
+
         val fullPrefix = result.prefixMatcher.prefix
-        
         if (fullPrefix.isEmpty()) return
-        
-        // Handle CamelCase: if adminU, we might want to search for 'U' as well
-        val searchPrefix = if (fullPrefix.any { it.isUpperCase() }) {
-            fullPrefix.substring(fullPrefix.indexOfLast { it.isUpperCase() })
+
+        val idx = service.getIndex() ?: return
+
+        val maxCount = service.completionCount
+        val lastUpperIdx = fullPrefix.indexOfLast { it.isUpperCase() }
+        val list = if (lastUpperIdx == -1) {
+            idx.search(DictionaryIndex.Query(text = fullPrefix), limit = maxCount)
         } else {
-            fullPrefix
+            val maxCountHalf = maxCount / 2
+            val searchPrefix = fullPrefix.substring(lastUpperIdx)
+            val listHalf = idx.search(DictionaryIndex.Query(text = searchPrefix), limit = maxCountHalf)
+            listHalf + idx.search(DictionaryIndex.Query(text = fullPrefix), limit = maxCount - listHalf.size)
         }
 
-        if (!service.ensureLoaded()) return
-        val idx = service.getIndex() ?: return
-        
-        // Search with the detected prefix
-        val list = idx.search(DictionaryIndex.Query(text = searchPrefix)).take(40)
-        
         for (r in list) {
             val entry = r.entry
             val base = entry.enAbbr ?: entry.enName ?: entry.koName
             val camel = NameGenerator.fromAbbreviation(base).camel
-            
-            // If we are completing a camelCase part, we should adjust the lookup string
-            // e.g., if prefix is 'adminU' and we found 'User', we want to offer 'adminUser'
-            val insertString = if (searchPrefix != fullPrefix) {
-                fullPrefix.substring(0, fullPrefix.length - searchPrefix.length) + camel.replaceFirstChar { it.uppercase() }
-            } else {
-                camel
-            }
-            
+
+            val insertString = if (lastUpperIdx == -1) camel else
+                fullPrefix.substring(0, lastUpperIdx) + camel.substring(lastUpperIdx)
+
             val lookupElement = LookupElementBuilder.create(insertString)
                 .let { if (eIcon != null) it.withIcon(eIcon) else it }
                 .withPresentableText(camel)
                 .withTailText(" (${entry.koName})", true)
                 .withTypeText(entry.type.name, true)
-                .withLookupString(camel) // Allow matching by the original name too
+                .withLookupString(camel)
                 .withLookupString(entry.koName)
-            
-            result.addElement(PrioritizedLookupElement.withPriority(lookupElement, r.score.toDouble()))
+
+            result.addElement(PrioritizedLookupElement.withPriority(lookupElement, 1000.0 + r.score.toDouble()))
         }
     }
 
@@ -85,9 +81,9 @@ class EgovCompletionContributor : CompletionContributor() {
                 PsiJavaPatterns.psiElement(PsiIdentifier::class.java)
                     .withParent(PsiJavaPatterns.psiElement(PsiVariable::class.java))
                     .accepts(position) ||
-                PsiJavaPatterns.psiElement(PsiIdentifier::class.java)
-                    .withParent(PsiJavaPatterns.psiElement(PsiParameter::class.java))
-                    .accepts(position)
+                        PsiJavaPatterns.psiElement(PsiIdentifier::class.java)
+                            .withParent(PsiJavaPatterns.psiElement(PsiParameter::class.java))
+                            .accepts(position)
             } catch (e: Throwable) {
                 false
             }
@@ -99,7 +95,7 @@ class EgovCompletionContributor : CompletionContributor() {
             return try {
                 val parent = position.parent
                 (parent is KtProperty && parent.nameIdentifier == position) ||
-                (parent is KtParameter && parent.nameIdentifier == position)
+                        (parent is KtParameter && parent.nameIdentifier == position)
             } catch (e: Throwable) {
                 false
             }
