@@ -10,6 +10,7 @@ class EgovToolWindowPanel(private val project: Project) : JBPanel<EgovToolWindow
 
     init {
         tabs.addTab("검색 (Search)", EgovSearchPanel(project))
+        tabs.addTab("변수 추가", EgovAddVariablePanel(project))
         tabs.addTab("설정 (Settings)", EgovSettingsPanel(project))
         add(tabs, BorderLayout.CENTER)
     }
